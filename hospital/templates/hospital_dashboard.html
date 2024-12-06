@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Dashboard</title>
+</head>
+<body>
+    <h1>Hospital Dashboard</h1>
+    <h2>Ambulance Requests</h2>
+    <table border="1">
+        <tr>
+            <th>Hospital Name</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+        {% for request in requests %}
+        <tr>
+            <td>{{ request.hospital_name }}</td>
+            <td>{{ request.hospital_lat }}, {{ request.hospital_lng }}</td>
+            <td>{{ request.status }}</td>
+            <td>
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="request_id" value="{{ request.id }}">
+                    <button type="submit" name="status" value="Accepted">Accept</button>
+                    <button type="submit" name="status" value="Rejected">Reject</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

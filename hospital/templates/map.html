@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Nearby Hospitals</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body>
+    <h1>Find Hospitals Near Me</h1>
+    <div id="map" style="height: 500px;"></div>
+    <div id="hospital-list">
+        <h2>Nearby Hospitals:</h2>
+        <ul id="hospitalResults"></ul>
+    </div>
+
+    <script>
+        var map = L.map('map').setView([20.5937, 78.9629], 5);  // Default center on India
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Function to get user location
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition);
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        function showPosition(position) {
+            var userLat = position.coords.latitude;
+            var userLng = position.coords.longitude;
+
+            // Center the map on user's location
+            map.setView([userLat, userLng], 13);
+            L.marker([userLat, userLng]).addTo(map).bindPopup("You are here").openPopup();
+
+            // Fetch nearby hospitals from OpenStreetMap
+            fetchHospitalsFromOSM(userLat, userLng);
+        }
+
+        // Function to fetch hospitals using Overpass API
+        function fetchHospitalsFromOSM(lat, lng) {
+            var query = `
+                [out:json];
+                (
+                  node["amenity"="hospital"](around:5000, ${lat}, ${lng});
+                  way["amenity"="hospital"](around:5000, ${lat}, ${lng});
+                  relation["amenity"="hospital"](around:5000, ${lat}, ${lng});
+                );
+                out body;
+                >;
+                out skel qt;
+            `;
+
+            fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: query,
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayHospitals(data, lat, lng);
+            });
+        }
+
+        // Display the hospitals on the map
+        function displayHospitals(data, userLat, userLng) {
+            var hospitalList = document.getElementById('hospitalResults');
+            hospitalList.innerHTML = '';
+
+            data.elements.forEach(element => {
+                if (element.tags && element.tags.name) {
+                    var hospitalLat = element.lat || element.center.lat;
+                    var hospitalLng = element.lon || element.center.lon;
+                    var hospitalName = element.tags.name;
+
+                    // Add to map
+                    L.marker([hospitalLat, hospitalLng]).addTo(map)
+                        .bindPopup(hospitalName)
+                        .openPopup();
+
+                    // Add to the list
+                    var li = document.createElement('li');
+                    li.textContent = `${hospitalName} - Distance: ${calculateDistance(userLat, userLng, hospitalLat, hospitalLng).toFixed(2)} km`;
+                    hospitalList.appendChild(li);
+                }
+            });
+        }
+
+        // Calculate distance between two points (Haversine Formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            var R = 6371; // Radius of the Earth in km
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = 
+                0.5 - Math.cos(dLat)/2 + 
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                (1 - Math.cos(dLon))/2;
+            return R * 2 * Math.asin(Math.sqrt(a));
+        }
+
+        // Start by getting user's location
+        getUserLocation();
+    </script>
+</body>
+</html>
